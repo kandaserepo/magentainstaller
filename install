@@ -8,7 +8,7 @@ def get_user_input(prompt):
     return input(prompt).strip()
 
 def main():
-    print("Welcome to the Magenta Linux Installer!")
+    print("Welcome to the Arch Linux Installer!")
 
     # Выбор диска
     disk = get_user_input("Enter the disk path (e.g., /dev/sda): ")
@@ -39,55 +39,65 @@ def main():
     # Генерация fstab
     run_command("genfstab -U /mnt >> /mnt/etc/fstab")
 
-    # Chroot в новую систему
-    run_command("arch-chroot /mnt /bin/bash")
+    # Подготовка скрипта для выполнения в chroot
+    chroot_script = "/mnt/chroot_setup.sh"
+    with open(chroot_script, 'w') as f:
+        f.write("#!/bin/bash\n")
+        f.write("set -e\n")  # Остановить выполнение при ошибках
 
-    # Настройка временной зоны
-    timezone = get_user_input("Enter the timezone (e.g., Europe/Moscow): ")
-    run_command(f"ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime")
-    run_command("hwclock --systohc")
+        # Настройка временной зоны
+        timezone = get_user_input("Enter the timezone (e.g., Europe/Moscow): ")
+        f.write(f"ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime\n")
+        f.write("hwclock --systohc\n")
 
-    # Настройка локализации
-    locale = get_user_input("Enter the locale (e.g., en_US.UTF-8): ")
-    run_command(f"echo '{locale} UTF-8' >> /etc/locale.gen")
-    run_command("locale-gen")
-    run_command(f"echo 'LANG={locale}' > /etc/locale.conf")
+        # Настройка локализации
+        locale = get_user_input("Enter the locale (e.g., en_US.UTF-8): ")
+        f.write(f"echo '{locale} UTF-8' >> /etc/locale.gen\n")
+        f.write("locale-gen\n")
+        f.write(f"echo 'LANG={locale}' > /etc/locale.conf\n")
 
-    # Настройка сети
-    hostname = get_user_input("Enter the hostname: ")
-    run_command(f"echo '{hostname}' > /etc/hostname")
-    run_command("echo '127.0.0.1 localhost' >> /etc/hosts")
-    run_command(f"echo '127.0.0.1 {hostname}.localdomain {hostname}' >> /etc/hosts")
+        # Настройка сети
+        hostname = get_user_input("Enter the hostname: ")
+        f.write(f"echo '{hostname}' > /etc/hostname\n")
+        f.write("echo '127.0.0.1 localhost' >> /etc/hosts\n")
+        f.write(f"echo '127.0.0.1 {hostname}.localdomain {hostname}' >> /etc/hosts\n")
 
-    # Установка загрузчика
-    boot_mode = get_user_input("Choose the boot mode (1 - UEFI, 2 - BIOS): ")
-    if boot_mode == '1':
-        run_command("pacman -S grub efibootmgr")
-        run_command("mkdir -p /boot/efi")
-        run_command(f"mount {disk}1 /boot/efi")  # Предполагаем, что первый раздел - EFI
-        run_command("grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
-    else:
-        run_command("pacman -S grub")
-        run_command(f"grub-install --target=i386-pc {disk}")
+        # Установка загрузчика
+        f.write("boot_mode=''\n")
+        f.write("read -p 'Choose the boot mode (1 - UEFI, 2 - BIOS): ' boot_mode\n")
+        f.write("if [ \"$boot_mode\" == '1' ]; then\n")
+        f.write("    pacman -S --noconfirm grub efibootmgr\n")
+        f.write("    mkdir -p /boot/efi\n")
+        f.write(f"    mount {disk}1 /boot/efi  # Предполагаем, что первый раздел - EFI\n")
+        f.write("    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB\n")
+        f.write("else\n")
+        f.write(f"    pacman -S --noconfirm grub\n")
+        f.write(f"    grub-install --target=i386-pc {disk}\n")
+        f.write("fi\n")
 
-    # Генерация конфигурации GRUB
-    run_command("grub-mkconfig -o /boot/grub/grub.cfg")
+        # Генерация конфигурации GRUB
+        f.write("grub-mkconfig -o /boot/grub/grub.cfg\n")
 
-    # Установка дополнительных пакетов
-    install_gui = get_user_input("Do you want to install a graphical environment and applications (1 - Yes, 2 - No): ")
-    if install_gui == '1':
-        run_command("pacman -S xorg sddm xfce4 xfce4-goodies firefox vlc")
-        run_command("systemctl enable sddm")
+        # Установка дополнительных пакетов
+        install_gui = get_user_input("Do you want to install a graphical environment and applications (1 - Yes, 2 - No): ")
+        if install_gui == '1':
+            f.write("pacman -S --noconfirm xorg xfce4 xfce4-goodies firefox vlc\n")
 
-    # Создание пользователя
-    username = get_user_input("Enter the username: ")
-    user_password = get_user_input("Enter the user password: ")
-    run_command(f"useradd -m -G wheel {username}")
-    run_command(f"echo '{username}:{user_password}' | chpasswd")
+        # Создание пользователя
+        username = get_user_input("Enter the username: ")
+        user_password = get_user_input("Enter the user password: ")
+        f.write(f"useradd -m -G wheel {username}\n")
+        f.write(f"echo '{username}:{user_password}' | chpasswd\n")
 
-    # Установка пароля root
-    root_password = get_user_input("Enter the root password: ")
-    run_command(f"echo 'root:{root_password}' | chpasswd")
+        # Установка пароля root
+        root_password = get_user_input("Enter the root password: ")
+        f.write(f"echo 'root:{root_password}' | chpasswd\n")
+
+    # Делаем скрипт исполняемым
+    run_command(f"chmod +x {chroot_script}")
+
+    # Chroot в новую систему и выполнение скрипта
+    run_command(f"arch-chroot /mnt /bin/bash {chroot_script}")
 
     print("Installation complete! Please reboot the system.")
 
