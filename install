@@ -7,7 +7,7 @@ def get_user_input(prompt):
     return input(prompt).strip()
 
 def main():
-    print("Welcome to the Arch Linux Installer!")
+    print("Welcome to the Magenta Linux Installer!")
     print("Выберите язык / Choose language:")
     print("1 - English")
     print("2 - Русский")
@@ -16,7 +16,7 @@ def main():
     if language_choice == '2':
         lang = 'ru'
         messages = {
-            "welcome": "Добро пожаловать в установщик Arch Linux!",
+            "welcome": "Добро пожаловать в установщик Magenta Linux!",
             "disk": "Введите путь к диску (например, /dev/sda): ",
             "partitioning": "Пожалуйста, выполните разметку диска вручную с помощью cfdisk.",
             "filesystem": "Введите файловую систему для корневого раздела (например, ext4, btrfs): ",
@@ -36,7 +36,7 @@ def main():
     else:
         lang = 'en'
         messages = {
-            "welcome": "Welcome to the Arch Linux Installer!",
+            "welcome": "Welcome to the Magenta Linux Installer!",
             "disk": "Enter the disk path (e.g., /dev/sda): ",
             "partitioning": "Please partition the disk manually using cfdisk.",
             "filesystem": "Enter the filesystem for the root partition (e.g., ext4, btrfs): ",
