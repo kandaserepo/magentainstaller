@@ -1,0 +1,161 @@
+import os
+
+def run_command(command):
+    os.system(command)
+
+def get_user_input(prompt):
+    return input(prompt).strip()
+
+def main():
+    print("Welcome to the Arch Linux Installer!")
+    print("Выберите язык / Choose language:")
+    print("1 - English")
+    print("2 - Русский")
+    language_choice = get_user_input("Введите номер / Enter number: ")
+
+    if language_choice == '2':
+        lang = 'ru'
+        messages = {
+            "welcome": "Добро пожаловать в установщик Arch Linux!",
+            "disk": "Введите путь к диску (например, /dev/sda): ",
+            "partitioning": "Пожалуйста, выполните разметку диска вручную с помощью cfdisk.",
+            "filesystem": "Введите файловую систему для корневого раздела (например, ext4, btrfs): ",
+            "root_partition": "Введите корневой раздел (например, /dev/sda1): ",
+            "swap_partition": "Введите раздел подкачки (например, /dev/sda2): ",
+            "kernel_choice": "Выберите ядро (1 - linux, 2 - linux-lts, 3 - linux-zen): ",
+            "timezone": "Введите часовой пояс (например, Europe/Moscow): ",
+            "locale": "Введите локализацию (например, en_US.UTF-8): ",
+            "hostname": "Введите имя хоста: ",
+            "boot_mode": "Выберите режим загрузки (1 - UEFI, 2 - BIOS): ",
+            "install_gui": "Хотите установить графическое окружение и приложения (1 - Да, 2 - Нет): ",
+            "username": "Введите имя пользователя: ",
+            "user_password": "Введите пароль пользователя: ",
+            "root_password": "Введите пароль для root: ",
+            "finish": "Установка завершена! Перезагрузите систему."
+        }
+    else:
+        lang = 'en'
+        messages = {
+            "welcome": "Welcome to the Arch Linux Installer!",
+            "disk": "Enter the disk path (e.g., /dev/sda): ",
+            "partitioning": "Please partition the disk manually using cfdisk.",
+            "filesystem": "Enter the filesystem for the root partition (e.g., ext4, btrfs): ",
+            "root_partition": "Enter the root partition (e.g., /dev/sda1): ",
+            "swap_partition": "Enter the swap partition (e.g., /dev/sda2): ",
+            "kernel_choice": "Choose the kernel (1 - linux, 2 - linux-lts, 3 - linux-zen): ",
+            "timezone": "Enter the timezone (e.g., Europe/Moscow): ",
+            "locale": "Enter the locale (e.g., en_US.UTF-8): ",
+            "hostname": "Enter the hostname: ",
+            "boot_mode": "Choose the boot mode (1 - UEFI, 2 - BIOS): ",
+            "install_gui": "Do you want to install a graphical environment and applications (1 - Yes, 2 - No): ",
+            "username": "Enter the username: ",
+            "user_password": "Enter the user password: ",
+            "root_password": "Enter the root password: ",
+            "finish": "Installation complete! Please reboot the system."
+        }
+
+    print(messages["welcome"])
+
+    # Выбор диска
+    disk = get_user_input(messages["disk"])
+
+    # Разметка диска
+    print(messages["partitioning"])
+    run_command(f"cfdisk {disk}")
+
+    # Форматирование файловой системы
+    fs_type = get_user_input(messages["filesystem"])
+    root_partition = get_user_input(messages["root_partition"])
+    swap_partition = get_user_input(messages["swap_partition"])
+
+    run_command(f"mkfs.{fs_type} {root_partition}")
+    run_command(f"mkswap {swap_partition}")
+    run_command(f"swapon {swap_partition}")
+
+    # Монтирование корневого раздела
+    run_command(f"mount {root_partition} /mnt")
+
+    # Выбор ядра
+    kernel_choice = get_user_input(messages["kernel_choice"])
+    if kernel_choice == '1':
+        kernel = 'linux'
+    elif kernel_choice == '2':
+        kernel = 'linux-lts'
+    elif kernel_choice == '3':
+        kernel = 'linux-zen'
+    else:
+        print("Invalid choice, using linux kernel by default.")
+        kernel = 'linux'
+
+    # Установка базовой системы
+    run_command(f"pacstrap /mnt base {kernel} linux-firmware")
+
+    # Генерация fstab
+    run_command("genfstab -U /mnt >> /mnt/etc/fstab")
+
+    # Chroot в новую систему
+    run_command("arch-chroot /mnt")
+
+    # Настройка временной зоны
+    timezone = get_user_input(messages["timezone"])
+    run_command(f"ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime")
+    run_command("hwclock --systohc")
+
+    # Настройка локализации
+    locale = get_user_input(messages["locale"])
+    run_command(f"echo '{locale} UTF-8' >> /etc/locale.gen")
+    run_command("locale-gen")
+    run_command(f"echo 'LANG={locale}' > /etc/locale.conf")
+
+    # Настройка сети
+    hostname = get_user_input(messages["hostname"])
+    run_command(f"echo '{hostname}' > /etc/hostname")
+    run_command("echo '127.0.0.1 localhost' >> /etc/hosts")
+    run_command(f"echo '127.0.0.1 {hostname}.localdomain {hostname}' >> /etc/hosts")
+
+    # Установка загрузчика
+    boot_mode = get_user_input(messages["boot_mode"])
+    if boot_mode == '1':
+        run_command("pacman -S grub efibootmgr")
+        run_command("mkdir -p /boot/efi")
+        run_command(f"mount {disk}1 /boot/efi")  # Предполагаем, что первый раздел - EFI
+        run_command("grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
+    else:
+        run_command("pacman -S grub")
+        run_command(f"grub-install --target=i386-pc {disk}")
+
+    # Генерация конфигурации GRUB
+    run_command("grub-mkconfig -o /boot/grub/grub.cfg")
+
+    # Изменение названия дистрибутива в os-release
+    with open("/mnt/etc/os-release", "r") as file:
+        os_release_content = file.readlines()
+
+    with open("/mnt/etc/os-release", "w") as file:
+        for line in os_release_content:
+            if line.startswith("NAME="):
+                file.write('NAME="Magenta Linux"\n')
+            elif line.startswith("PRETTY_NAME="):
+                file.write('PRETTY_NAME="Magenta Linux"\n')
+            else:
+                file.write(line)
+
+    # Установка дополнительных пакетов
+    install_gui = get_user_input(messages["install_gui"])
+    if install_gui == '1':
+        run_command("pacman -S xorg xfce4 xfce4-goodies firefox vlc")
+
+    # Создание пользователя
+    username = get_user_input(messages["username"])
+    user_password = get_user_input(messages["user_password"])
+    run_command(f"useradd -m -G wheel {username}")
+    run_command(f"echo '{username}:{user_password}' | chpasswd")
+
+    # Установка пароля root
+    root_password = get_user_input(messages["root_password"])
+    run_command(f"echo 'root:{root_password}' | chpasswd")
+
+    print(messages["finish"])
+
+if __name__ == "__main__":
+    main()
