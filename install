@@ -41,6 +41,7 @@ def main():
 
     # Подготовка скрипта для выполнения в chroot
     chroot_script = "/mnt/chroot_setup.sh"
+    run_command("touch {chroot_script}")
     with open(chroot_script, 'w') as f:
         f.write("#!/bin/bash\n")
         f.write("set -e\n")  # Остановить выполнение при ошибках
