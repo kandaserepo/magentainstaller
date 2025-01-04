@@ -82,6 +82,14 @@ def main():
         f.write("pacman -S --noconfirm sudo nano networkmanager\n")
         f.write("systemctl enable NetworkManager.service\n")  # Включаем NetworkManager
 
+        # Настройка файла /etc/os-release
+        f.write("cat <<EOF > /etc/os-release\n")
+        f.write("NAME=\"Magenta Linux\"\n")
+        f.write("VERSION=\"1.0\"\n")
+        f.write("ID=magenta\n")
+        f.write("ID_LIKE=arch\n")
+        f.write("EOF\n")
+
         # Настройка sudo для пользователя
         username = get_user_input("Enter the username: ")
         f.write(f"echo '{username} ALL=(ALL) ALL' >> /etc/sudoers.d/{username}\n")
