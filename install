@@ -8,7 +8,7 @@ def get_user_input(prompt):
     return input(prompt).strip()
 
 def main():
-    print("Welcome to the Arch Linux Installer!")
+    print("Welcome to the Magenta Linux Installer!")
 
     # Выбор диска
     disk = get_user_input("Enter the disk path (e.g., /dev/sda): ")
@@ -41,7 +41,6 @@ def main():
 
     # Подготовка скрипта для выполнения в chroot
     chroot_script = "/mnt/chroot_setup.sh"
-    run_command("touch {chroot_script}")
     with open(chroot_script, 'w') as f:
         f.write("#!/bin/bash\n")
         f.write("set -e\n")  # Остановить выполнение при ошибках
@@ -58,7 +57,7 @@ def main():
         f.write(f"echo 'LANG={locale}' > /etc/locale.conf\n")
 
         # Настройка сети
-        hostname = get_user_input("Enter the hostname: ")
+        hostname = "magenta"  # Название системы изменено на Magenta Linux
         f.write(f"echo '{hostname}' > /etc/hostname\n")
         f.write("echo '127.0.0.1 localhost' >> /etc/hosts\n")
         f.write(f"echo '127.0.0.1 {hostname}.localdomain {hostname}' >> /etc/hosts\n")
@@ -79,13 +78,22 @@ def main():
         # Генерация конфигурации GRUB
         f.write("grub-mkconfig -o /boot/grub/grub.cfg\n")
 
-        # Установка дополнительных пакетов
-        install_gui = get_user_input("Do you want to install a graphical environment and applications (1 - Yes, 2 - No): ")
+        # Установка sudo, nano и NetworkManager
+        f.write("pacman -S --noconfirm sudo nano networkmanager\n")
+        f.write("systemctl enable NetworkManager.service\n")  # Включаем NetworkManager
+
+        # Настройка sudo для пользователя
+        username = get_user_input("Enter the username: ")
+        f.write(f"echo '{username} ALL=(ALL) ALL' >> /etc/sudoers.d/{username}\n")
+        f.write("chmod 440 /etc/sudoers.d/{username}\n")
+
+        # Установка графической среды и SDDM
+        install_gui = get_user_input("Do you want to install a graphical environment (1 - Yes, 2 - No): ")
         if install_gui == '1':
-            f.write("pacman -S --noconfirm xorg xfce4 xfce4-goodies firefox vlc\n")
+            f.write("pacman -S --noconfirm xorg xfce4 xfce4-goodies sddm\n")
+            f.write("systemctl enable sddm.service\n")  # Включаем SDDM
 
         # Создание пользователя
-        username = get_user_input("Enter the username: ")
         user_password = get_user_input("Enter the user password: ")
         f.write(f"useradd -m -G wheel {username}\n")
         f.write(f"echo '{username}:{user_password}' | chpasswd\n")
@@ -98,7 +106,7 @@ def main():
     run_command(f"chmod +x {chroot_script}")
 
     # Chroot в новую систему и выполнение скрипта
-    run_command(f"arch-chroot /mnt /bin/bash chroot_setup.sh")
+    run_command(f"arch-chroot /mnt /bin/bash {chroot_script}")
 
     print("Installation complete! Please reboot the system.")
 
