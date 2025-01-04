@@ -40,7 +40,7 @@ def main():
     run_command("genfstab -U /mnt >> /mnt/etc/fstab")
 
     # Подготовка скрипта для выполнения в chroot
-    chroot_script = "/mnt/chroot_setup.sh"
+    chroot_script = "/mnt/home/root/chroot_setup.sh"
     run_command("touch {chroot_script}")
     with open(chroot_script, 'w') as f:
         f.write("#!/bin/bash\n")
