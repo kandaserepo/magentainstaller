@@ -115,7 +115,7 @@ def main():
     run_command(f"chmod +x {chroot_script}")
 
     # Chroot в новую систему и выполнение скрипта
-    run_command(f"arch-chroot /mnt /bin/bash {chroot_script}")
+    run_command(f"arch-chroot /mnt /bin/bash sh {chroot_script}")
 
     print("Installation complete! Please reboot the system.")
 
