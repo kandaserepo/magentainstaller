@@ -93,7 +93,6 @@ def main():
         # Настройка sudo для пользователя
         username = get_user_input("Enter the username: ")
         f.write(f"echo '{username} ALL=(ALL) ALL' >> /etc/sudoers.d/{username}\n")
-        f.write("chmod 440 /etc/sudoers.d/{username}\n")
 
         # Установка графической среды и SDDM
         install_gui = get_user_input("Do you want to install a graphical environment (1 - Yes, 2 - No): ")
