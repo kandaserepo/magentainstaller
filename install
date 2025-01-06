@@ -111,7 +111,7 @@ def main():
         f.write(f"echo 'root:{root_password}' | chpasswd\n")
 
     # Делаем скрипт исполняемым
-    run_command(f"chmod +x {chroot_script}")
+    run_command(f"chmod +x /mnt/chroot_script.sh")
 
     # Chroot в новую систему и выполнение скрипта
     run_command(f"arch-chroot /mnt sh chroot_script.sh")
