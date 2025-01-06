@@ -34,15 +34,14 @@ def main():
     run_command(f"mount {root_partition} /mnt")
 
     # Установка базовой системы
-    run_command("pacstrap /mnt base linux linux-firmware")
+    run_command("pacstrap /mnt base linux-zen linux-firmware")
 
     # Генерация fstab
     run_command("genfstab -U /mnt >> /mnt/etc/fstab")
 
     # Подготовка скрипта для выполнения в chroot
-    chroot_script = "/mnt/home/root/chroot_setup.sh"
-    run_command("touch {chroot_script}")
-    with open(chroot_script, 'w') as f:
+    run_command("touch /mnt/chroot-script.sh")
+    with open("/mnt/chroot_script.sh", 'w') as f:
         f.write("#!/bin/bash\n")
         f.write("set -e\n")  # Остановить выполнение при ошибках
 
