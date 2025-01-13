@@ -1,121 +1,104 @@
 import os
-
-def run_command(command):
-    print(f"Running command: {command}")
-    os.system(command)
-
-def get_user_input(prompt):
-    return input(prompt).strip()
+import subprocess
 
 def main():
-    print("Welcome to the Magenta Linux Installer!")
+    print("Welcome to the Magenta Linux installer!")
 
-    # Выбор диска
-    disk = get_user_input("Enter the disk path (e.g., /dev/sda): ")
+    # 1. Disk selection
+    disk = input("Enter the disk for installation (e.g., /dev/sda): ")
+    subprocess.run(["cfdisk", disk])
 
-    # Разметка диска
-    print("Please partition the disk manually using cfdisk.")
-    run_command(f"cfdisk {disk}")
+    # 2. Mount point specification
+    mount_points = []
+    while True:
+        point = input("Enter a mount point (or 'exit' to finish): ")
+        if point.lower() == 'exit':
+            break
+        mount_points.append(point)
 
-    # Форматирование файловой системы
-    fs_type = get_user_input("Enter the filesystem for the root partition (e.g., ext4): ")
-    root_partition = get_user_input("Enter the root partition (e.g., /dev/sda1): ")
+    # 3. Locale selection
+    locale = input("Enter the locale (e.g., en_US.UTF-8): ")
+    keyboard_layout = input("Enter the keyboard layout (e.g., us): ")
 
-    # Спрашиваем, нужно ли создавать swap
-    create_swap = get_user_input("Do you want to create a swap partition? (1 - Yes, 2 - No): ")
-    if create_swap == '1':
-        swap_partition = get_user_input("Enter the swap partition (e.g., /dev/sda2): ")
-        run_command(f"mkswap {swap_partition}")
-        run_command(f"swapon {swap_partition}")
+    # 4. Timezone
+    timezone = input("Enter the timezone (e.g., Europe/Berlin): ")
 
-    run_command(f"mkfs.{fs_type} {root_partition}")
+    # 5. User setup
+    username = input("Enter the username: ")
 
-    # Монтирование корневого раздела
-    run_command(f"mount {root_partition} /mnt")
+    # 6. Installation type
+    print("Select installation type:")
+    print("1. Server")
+    print("2. Desktop-Minimal")
+    print("3. Desktop-Full")
+    install_type = input("Enter the installation type number: ")
 
-    # Установка базовой системы
-    run_command("pacstrap /mnt base linux-zen linux-firmware")
+    # 7. Installation confirmation
+    confirm = input("Do you confirm the installation? (Y/n): ")
+    if confirm.lower() != 'y':
+        print("Installation canceled.")
+        return
 
-    # Генерация fstab
-    run_command("genfstab -U /mnt >> /mnt/etc/fstab")
+    # 8. Generate bash script
+    script_content = f"""#!/bin/bash
 
-    # Подготовка скрипта для выполнения в chroot
-    run_command("touch /mnt/chroot-script.sh")
-    with open("/mnt/chroot_script.sh", 'w') as f:
-        f.write("#!/bin/bash\n")
-        f.write("set -e\n")  # Остановить выполнение при ошибках
+# Format partitions
+mkfs.ext4 {mount_points[0]}  # root
+if [ -n "{mount_points[1]}" ]; then
+    mkfs.fat -F32 {mount_points[1]}  # EFI, if specified
+fi
 
-        # Настройка временной зоны
-        timezone = get_user_input("Enter the timezone (e.g., Europe/Moscow): ")
-        f.write(f"ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime\n")
-        f.write("hwclock --systohc\n")
+# Install kernel
+pacstrap /mnt linux-zen
 
-        # Настройка локализации
-        locale = get_user_input("Enter the locale (e.g., en_US.UTF-8): ")
-        f.write(f"echo '{locale} UTF-8' >> /etc/locale.gen\n")
-        f.write("locale-gen\n")
-        f.write(f"echo 'LANG={locale}' > /etc/locale.conf\n")
+# Generate fstab
+genfstab -U /mnt >> /mnt/etc/fstab
 
-        # Настройка сети
-        hostname = "magenta"  # Название системы изменено на Magenta Linux
-        f.write(f"echo '{hostname}' > /etc/hostname\n")
-        f.write("echo '127.0.0.1 localhost' >> /etc/hosts\n")
-        f.write(f"echo '127.0.0.1 {hostname}.localdomain {hostname}' >> /etc/hosts\n")
+# System setup
+echo "Magenta Linux" > /mnt/etc/hostname
+echo "LANG={locale}" > /mnt/etc/locale.conf
+echo "KEYMAP={keyboard_layout}" > /mnt/etc/vconsole.conf
+ln -sf /usr/share/zoneinfo/{timezone} /mnt/etc/localtime
+hwclock --systohc
 
-        # Установка загрузчика
-        f.write("boot_mode=''\n")
-        f.write("read -p 'Choose the boot mode (1 - UEFI, 2 - BIOS): ' boot_mode\n")
-        f.write("if [ \"$boot_mode\" == '1' ]; then\n")
-        f.write("    pacman -S --noconfirm grub efibootmgr\n")
-        f.write("    mkdir -p /boot/efi\n")
-        f.write(f"    mount {disk}1 /boot/efi  # Предполагаем, что первый раздел - EFI\n")
-        f.write("    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB\n")
-        f.write("else\n")
-        f.write(f"    pacman -S --noconfirm grub\n")
-        f.write(f"    grub-install --target=i386-pc {disk}\n")
-        f.write("fi\n")
+# Create user
+useradd -m -G wheel {username}
+echo "Enter password for user {username}:"
+passwd {username}
 
-        # Генерация конфигурации GRUB
-        f.write("grub-mkconfig -o /boot/grub/grub.cfg\n")
+# Install environment based on installation type
+if [ "{install_type}" -eq "2" ]; then
+    pacstrap /mnt xfce4 sddm firefox vlc
+    systemctl enable sddm
+elif [ "{install_type}" -eq "3" ]; then
+    pacstrap /mnt xfce4 sddm firefox gimp telegram-desktop discord vlc openoffice
+    systemctl enable sddm
+fi
 
-        # Установка sudo, nano и NetworkManager
-        f.write("pacman -S --noconfirm sudo nano networkmanager\n")
-        f.write("systemctl enable NetworkManager.service\n")  # Включаем NetworkManager
+# Install GRUB
+if [ -n "{mount_points[1]}" ]; then
+    grub-install --target=x86_64-efi --efi-directory={mount_points[1]} --bootloader-id=GRUB
+else
+    grub-install --target=i386-pc {disk}
+fi
+grub-mkconfig -o /mnt/boot/grub/grub.cfg
+rm /etc/os-release
+# Change /etc/os-release
+echo 'NAME="Magenta Linux"' > /mnt/etc/os-release
+echo 'VERSION="1.0"' >> /mnt/etc/os-release
+echo 'ID=magenta' >> /mnt/etc/os-release
+echo 'ID_LIKE=arch' >> /mnt/etc/os-release
+echo 'VERSION_ID="1.0"' >> /mnt/etc/os-release
+echo 'PRETTY_NAME="Magenta Linux"' >> /mnt/etc/os-release
 
-        # Настройка файла /etc/os-release
-        f.write("cat <<EOF > /etc/os-release\n")
-        f.write("NAME=\"Magenta Linux\"\n")
-        f.write("VERSION=\"1.0\"\n")
-        f.write("ID=magenta\n")
-        f.write("ID_LIKE=arch\n")
-        f.write("EOF\n")
+echo "Installation completed! Rebooting in 15 seconds."
+sleep 15
+reboot
+"""
 
-        # Настройка sudo для пользователя
-        username = get_user_input("Enter the username: ")
-        f.write(f"echo '{username} ALL=(ALL) ALL' >> /etc/sudoers.d/{username}\n")
-
-        # Установка графической среды и SDDM
-        install_gui = get_user_input("Do you want to install a graphical environment (1 - Yes, 2 - No): ")
-        if install_gui == '1':
-            f.write("pacman -S --noconfirm xorg xfce4 xfce4-goodies sddm\n")
-            f.write("systemctl enable sddm.service\n")  # Включаем SDDM
-
-        # Создание пользователя
-        user_password = get_user_input("Enter the user password: ")
-        f.write(f"useradd -m -G wheel {username}\n")
-        f.write(f"echo '{username}:{user_password}' | chpasswd\n")
-
-        # Установка пароля root
-        root_password = get_user_input("Enter the root password: ")
-        f.write(f"echo 'root:{root_password}' | chpasswd\n")
-
-    # Делаем скрипт исполняемым
-    run_command(f"chmod +x /mnt/chroot_script.sh")
-
-    # Chroot в новую систему и выполнение скрипта
-    run_command(f"arch-chroot /mnt sh chroot_script.sh")
-
-    print("Installation complete! Please reboot the system.")
+with open('/mnt/chroot.sh', 'w') as file:
+    file.write(script_content)
+os.system('arch-chroot /mnt chroot.sh')
 
 if __name__ == "__main__":
     main()
