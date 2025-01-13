@@ -49,13 +49,13 @@ if [ -n "{mount_points[1]}" ]; then
 fi
 
 # Install kernel
-pacstrap /mnt linux-zen
+pacstrap /mnt linux-zen linux-firmware base
 
 # Generate fstab
 genfstab -U /mnt >> /mnt/etc/fstab
 
 # System setup
-echo "Magenta Linux" > /mnt/etc/hostname
+echo "Magenta" > /mnt/etc/hostname
 echo "LANG={locale}" > /mnt/etc/locale.conf
 echo "KEYMAP={keyboard_layout}" > /mnt/etc/vconsole.conf
 ln -sf /usr/share/zoneinfo/{timezone} /mnt/etc/localtime
@@ -68,10 +68,10 @@ passwd {username}
 
 # Install environment based on installation type
 if [ "{install_type}" -eq "2" ]; then
-    pacstrap /mnt xfce4 sddm firefox vlc
+    pacstrap /mnt xorg xorg-server xfce4 sddm firefox vlc
     systemctl enable sddm
 elif [ "{install_type}" -eq "3" ]; then
-    pacstrap /mnt xfce4 sddm firefox gimp telegram-desktop discord vlc openoffice
+    pacstrap /mnt xorg xorg-server xfce4 sddm firefox gimp telegram-desktop discord vlc openoffice
     systemctl enable sddm
 fi
 
