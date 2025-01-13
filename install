@@ -96,9 +96,9 @@ sleep 15
 reboot
 """
 
-with open('/mnt/chroot.sh', 'w') as file:
-    file.write(script_content)
-os.system('arch-chroot /mnt chroot.sh')
+    with open('/mnt/chroot.sh', 'w') as file:
+        file.write(script_content)
+    os.system('arch-chroot /mnt chroot.sh')
 
 if __name__ == "__main__":
     main()
